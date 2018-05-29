@@ -9,6 +9,7 @@ using System.Net;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading.Tasks;
+using System.Threading;
 
 namespace AutoBarTest
 {
@@ -16,10 +17,10 @@ namespace AutoBarTest
     public class MainActivity : AppCompatActivity
     {
 
-        EditText editIp, editPort, editProduct;
+        EditText editIp, editPort, editSend;
         Button btnSend;
         TextView txtViewRecived;
-        bool isRunning = false;
+
         protected override void OnCreate(Bundle savedInstanceState)
         {
             base.OnCreate(savedInstanceState);
@@ -35,75 +36,91 @@ namespace AutoBarTest
             View contentMain = this.FindViewById<View>(Resource.Id.MainContentLayout);
             editIp = contentMain.FindViewById<EditText>(Resource.Id.editIP);
             editPort = contentMain.FindViewById<EditText>(Resource.Id.editPort);
-            editProduct = contentMain.FindViewById<EditText>(Resource.Id.editProduct);
+            editSend = contentMain.FindViewById<EditText>(Resource.Id.editSend);
             btnSend = contentMain.FindViewById<Button>(Resource.Id.btnSend);
             txtViewRecived = contentMain.FindViewById<TextView>(Resource.Id.txtViewRecived);
             btnSend.Click += BtnSend_Click;
 
         }
 
-        string strMessage = "";
+
 
         private void SendSocket(string strIP, string strPort, string strSend)
         {
             byte[] bytes = new byte[1024];
+
+            IPAddress ipAddress = IPAddress.Parse(strIP);// GetIPAddressInterNetwork();
+            IPEndPoint remoteEP = new IPEndPoint(ipAddress, int.Parse(strPort));
+            Socket socket = new Socket(ipAddress.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
+            string strMessage = "";
             try
             {
-                IPAddress ipAddress = IPAddress.Parse(strIP);// GetIPAddressInterNetwork();
-                IPEndPoint remoteEP = new IPEndPoint(ipAddress, int.Parse(strPort));
-                Socket sender = new Socket(ipAddress.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
 
-                try
+                socket.Connect(remoteEP);
+                socket.ReceiveTimeout = 50000;
+                byte[] msg = Encoding.ASCII.GetBytes(strSend);
+                int bytesSent = socket.Send(msg);
+
+                while (!strMessage.Contains("0008"))
                 {
-                    sender.Connect(remoteEP);
-
-                    byte[] msg = Encoding.ASCII.GetBytes(strSend);
-                    int bytesSent = sender.Send(msg);
-
-                    while (!strMessage.Contains("0008"))
+                    int bytesRec = socket.Receive(bytes);
+                    strMessage += ("\n" + Encoding.ASCII.GetString(bytes, 0, bytesRec));
+                    RunOnUiThread(() =>
                     {
-                        int bytesRec = sender.Receive(bytes);
-                        strMessage += Encoding.ASCII.GetString(bytes, 0, bytesRec);
-                        RunOnUiThread(() => { txtViewRecived.Text = strMessage; });
-                    }
-
-                    sender.Shutdown(SocketShutdown.Both);
-                    sender.Close();
-
-                }
-                catch (ArgumentNullException ane)
-                {
-                    strMessage = ane.ToString();
-
-                }
-                catch (SocketException se)
-                {
-                    strMessage = se.ToString();
-
-                }
-                catch (Exception e)
-                {
-                    strMessage = e.ToString();
+                        txtViewRecived.Text = strMessage;
+                    });
                 }
                 strMessage = "";
+            }
+            catch (ArgumentNullException ane)
+            {
+                strMessage = ane.ToString();
+
+            }
+            catch (SocketException se)
+            {
+                strMessage = se.ToString();
 
             }
             catch (Exception e)
             {
+                strMessage = e.ToString();
             }
-        }
+            finally
+            {
+                socket.Shutdown(SocketShutdown.Both);
+                socket.Close();
+            }
 
+            RunOnUiThread(() =>
+            {
+                txtViewRecived.Text = strMessage;
+            });
+
+        }
+        Thread currentThread = null;
         private void BtnSend_Click(object sender, EventArgs e)
         {
-            if (isRunning == false)
+            try
             {
-                Task.Run(() =>
+                if (currentThread != null)
                 {
-                    isRunning = true;
-                    SendSocket(editIp.Text, editPort.Text, "0001" + editProduct.Text);
-                    isRunning = false;
-                });
+                    currentThread.Abort();
+                    currentThread = null;
+                }
+
             }
+            catch (Exception)
+            {
+                currentThread = null;
+            }
+
+            currentThread = new Thread(() =>
+            {
+                SendSocket(editIp.Text, editPort.Text, editSend.Text);
+            });
+
+            currentThread.Start();
 
         }
 

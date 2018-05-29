@@ -15,7 +15,7 @@
             android:layout_height="50dp"
             android:layout_margin="10dp"
             android:hint="Ip"
-            android:text="192.168.0.13"
+            android:text="192.168.137.1"
             android:id="@+id/editIP"
             style="@android:style/Widget.EditText" />
         <EditText
@@ -30,9 +30,9 @@
             android:layout_width="match_parent"
             android:layout_height="50dp"
             android:layout_margin="10dp"
-            android:hint="Id Produto"
+            android:hint="0000 para metodo e 0000 para id"
             android:inputType="number"
-            android:id="@+id/editProduct"
+            android:id="@+id/editSend"
             style="@android:style/Widget.EditText" />
         <Button
             android:layout_width="match_parent"

@@ -2352,7 +2352,7 @@ namespace AutoBarTest
 			public const int editPort = 2131230839;
 			
 			// aapt resource value: 0x7f080078
-			public const int editProduct = 2131230840;
+			public const int editSend = 2131230840;
 			
 			// aapt resource value: 0x7f080066
 			public const int edit_query = 2131230822;
