@@ -20,7 +20,8 @@ namespace AutoBarTest
         EditText editIp, editPort, editSend;
         Button btnSend;
         TextView txtViewRecived;
-
+        Timer timer;
+        string strMessage = "";
         protected override void OnCreate(Bundle savedInstanceState)
         {
             base.OnCreate(savedInstanceState);
@@ -41,9 +42,24 @@ namespace AutoBarTest
             txtViewRecived = contentMain.FindViewById<TextView>(Resource.Id.txtViewRecived);
             btnSend.Click += BtnSend_Click;
 
+            timer = new Timer(SyncTextView, DateTimeOffset.UtcNow, 0, 1000);
+
         }
 
+        private void SyncTextView(object state = null)
+        {
+            try
+            {
+                RunOnUiThread(() =>
+                {
+                    txtViewRecived.Text = strMessage;
+                });
+            }
+            catch (Exception)
+            {
 
+            }
+        }
 
         private void SendSocket(string strIP, string strPort, string strSend)
         {
@@ -52,10 +68,10 @@ namespace AutoBarTest
             IPAddress ipAddress = IPAddress.Parse(strIP);// GetIPAddressInterNetwork();
             IPEndPoint remoteEP = new IPEndPoint(ipAddress, int.Parse(strPort));
             Socket socket = new Socket(ipAddress.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
-            string strMessage = "";
+
             try
             {
-
+                strMessage = "Inicio\n";
                 socket.Connect(remoteEP);
                 socket.ReceiveTimeout = 50000;
                 byte[] msg = Encoding.ASCII.GetBytes(strSend);
@@ -64,13 +80,14 @@ namespace AutoBarTest
                 while (!strMessage.Contains("0008"))
                 {
                     int bytesRec = socket.Receive(bytes);
-                    strMessage += ("\n" + Encoding.ASCII.GetString(bytes, 0, bytesRec));
-                    RunOnUiThread(() =>
-                    {
-                        txtViewRecived.Text = strMessage;
-                    });
+                    var strR = Encoding.ASCII.GetString(bytes, 0, bytesRec);
+
+                    if (string.IsNullOrEmpty(strR))
+                        break;
+
+                    strMessage += (strR + "\n");
                 }
-                strMessage = "";
+                strMessage += "FIM";
             }
             catch (ArgumentNullException ane)
             {
@@ -91,37 +108,11 @@ namespace AutoBarTest
                 socket.Shutdown(SocketShutdown.Both);
                 socket.Close();
             }
-
-            RunOnUiThread(() =>
-            {
-                txtViewRecived.Text = strMessage;
-            });
-
         }
-        Thread currentThread = null;
+
         private void BtnSend_Click(object sender, EventArgs e)
         {
-            try
-            {
-                if (currentThread != null)
-                {
-                    currentThread.Abort();
-                    currentThread = null;
-                }
-
-            }
-            catch (Exception)
-            {
-                currentThread = null;
-            }
-
-            currentThread = new Thread(() =>
-            {
-                SendSocket(editIp.Text, editPort.Text, editSend.Text);
-            });
-
-            currentThread.Start();
-
+            Task.Run(() => { SendSocket(editIp.Text, editPort.Text, editSend.Text); });
         }
 
         public override bool OnCreateOptionsMenu(IMenu menu)
